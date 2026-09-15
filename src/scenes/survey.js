@@ -197,14 +197,17 @@ const surveyScene = new Scenes.WizardScene(
     ctx.wizard.state.survey.telefon = phone;
     await ctx.reply(`✅ *Telefon raqami qabul qilindi:* ${phone}`, { parse_mode: 'Markdown' });
 
-    // 5-savol: Mahallada qilingan ish
-    const buttons = QILINGAN_ISH_OPTIONS.map(opt => [Markup.button.callback(opt, `qilingan:${opt}`)]);
-    buttons.push([Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]);
-
+    // 5-savol: Mahallada qilingan ish (Qo'lda yozish)
     await ctx.reply(
-      '🔨 *5-savol: Mahallada qilingan ish*\n\nQuyidagi variantlardan birini tanlang yoki o‘zingiz yozib yuboring:\n' +
-      '• Oila bilan ishlash\n• Mikro loyiha\n• Subsidiya olish\n• Boshqa',
-      { parse_mode: 'Markdown', ...Markup.inlineKeyboard(buttons) }
+      '🔨 *5-savol: Mahallada qilingan ish*\n\n' +
+      'Mahallada amalga oshirilgan ish haqida yozib yuboring.\n' +
+      '_(Masalan: Oila bilan ishlash, Mikro loyiha, Subsidiya olish yoki boshqa...)_',
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]
+        ])
+      }
     );
     return ctx.wizard.next();
   },
@@ -214,48 +217,64 @@ const surveyScene = new Scenes.WizardScene(
   // ----------------------------------------------------
   async (ctx) => {
     if (ctx.callbackQuery) {
-      const data = ctx.callbackQuery.data;
-      if (data === 'cancel_survey') {
-        await ctx.answerCbQuery('Bekor qilindi');
-        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.', Markup.removeKeyboard());
+      if (ctx.callbackQuery.data === 'cancel_survey') {
+        await ctx.answerCbQuery('So‘rovnoma bekor qilindi');
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
         return ctx.scene.leave();
       }
-      if (data.startsWith('qilingan:')) {
-        const val = data.replace('qilingan:', '');
-        ctx.wizard.state.survey.qilinganIsh = val;
-        await ctx.answerCbQuery();
-        await ctx.editMessageText(`✅ *Qilingan ish:* ${val}`, { parse_mode: 'Markdown' });
+    }
 
-        // 6-savol: Mahalla muammosi
-        await ctx.reply(
-          '⚠️ *6-savol: Mahallani muammosi haqida qisqacha ma’lumot.*\n\nMahalladagi asosiy muammo haqida qisqacha yozib yuboring:',
-          { parse_mode: 'Markdown' }
-        );
-        return ctx.wizard.next();
+    if (!ctx.message || !ctx.message.text) {
+      await ctx.reply('Iltimos, mahallada qilingan ish haqida matn ko‘rinishida yozib yuboring:');
+      return;
+    }
+
+    const text = ctx.message.text.trim();
+    if (text === '/cancel' || text === '❌ Bekor qilish') {
+      await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
+      return ctx.scene.leave();
+    }
+
+    ctx.wizard.state.survey.qilinganIsh = text;
+
+    // 6-savol: Mahalla muammosi
+    await ctx.reply(
+      '⚠️ *6-savol: Mahallani muammosi haqida qisqacha ma’lumot.*\n\n' +
+      'Mahalladagi asosiy muammo haqida qisqacha yozib yuboring:',
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]
+        ])
       }
-    }
-
-    if (ctx.message && ctx.message.text) {
-      ctx.wizard.state.survey.qilinganIsh = ctx.message.text.trim();
-      // 6-savol: Mahalla muammosi
-      await ctx.reply(
-        '⚠️ *6-savol: Mahallani muammosi haqida qisqacha ma’lumot.*\n\nMahalladagi asosiy muammo haqida qisqacha yozib yuboring:',
-        { parse_mode: 'Markdown' }
-      );
-      return ctx.wizard.next();
-    }
+    );
+    return ctx.wizard.next();
   },
 
   // ----------------------------------------------------
   // BOSQICH 7: Muammoni qabul qilish va Rasmni so'rash (Savol 7)
   // ----------------------------------------------------
   async (ctx) => {
+    if (ctx.callbackQuery) {
+      if (ctx.callbackQuery.data === 'cancel_survey') {
+        await ctx.answerCbQuery('So‘rovnoma bekor qilindi');
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
+        return ctx.scene.leave();
+      }
+    }
+
     if (!ctx.message || !ctx.message.text) {
       await ctx.reply('Iltimos, muammo haqida matn ko‘rinishida yozing:');
       return;
     }
 
-    ctx.wizard.state.survey.muammo = ctx.message.text.trim();
+    const text = ctx.message.text.trim();
+    if (text === '/cancel' || text === '❌ Bekor qilish') {
+      await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
+      return ctx.scene.leave();
+    }
+
+    ctx.wizard.state.survey.muammo = text;
 
     // 7-savol: Mahallada qilingan ish rasmi
     const skipKeyboard = Markup.inlineKeyboard([
@@ -264,7 +283,9 @@ const surveyScene = new Scenes.WizardScene(
     ]);
 
     await ctx.reply(
-      '📷 *7-savol: Mahallada qilingan ish rasmi*\n\nMahallada amalga oshirilgan ish yuzasidan bitta rasm (foto) yuboring.\nAgar rasm bo‘lmasa, pastdagi "O‘tkazib yuborish" tugmasini bosing:',
+      '📷 *7-savol: Mahallada qilingan ish rasmi*\n\n' +
+      'Mahallada amalga oshirilgan ish yuzasidan bitta rasm (foto) yuboring.\n' +
+      'Agar rasm bo‘lmasa, pastdagi "O‘tkazib yuborish" tugmasini bosing:',
       { parse_mode: 'Markdown', ...skipKeyboard }
     );
     return ctx.wizard.next();
@@ -278,7 +299,7 @@ const surveyScene = new Scenes.WizardScene(
       const data = ctx.callbackQuery.data;
       if (data === 'cancel_survey') {
         await ctx.answerCbQuery('Bekor qilindi');
-        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.', Markup.removeKeyboard());
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
         return ctx.scene.leave();
       }
       if (data === 'skip_photo') {
@@ -314,29 +335,28 @@ const surveyScene = new Scenes.WizardScene(
   // BOSQICH 9: Amaliy ishni qabul qilish va Tasdiqlash
   // ----------------------------------------------------
   async (ctx) => {
-    let amaliyIsh = '';
-
     if (ctx.callbackQuery) {
       const data = ctx.callbackQuery.data;
       if (data === 'cancel_survey') {
         await ctx.answerCbQuery('Bekor qilindi');
-        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.', Markup.removeKeyboard());
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
         return ctx.scene.leave();
-      }
-      if (data.startsWith('amaliy:')) {
-        amaliyIsh = data.replace('amaliy:', '');
-        ctx.wizard.state.survey.amaliyIsh = amaliyIsh;
-        await ctx.answerCbQuery();
-        await ctx.editMessageText(`✅ *Amaliy ish:* ${amaliyIsh}`, { parse_mode: 'Markdown' });
-        return showSummary(ctx);
       }
     }
 
-    if (ctx.message && ctx.message.text) {
-      amaliyIsh = ctx.message.text.trim();
-      ctx.wizard.state.survey.amaliyIsh = amaliyIsh;
-      return showSummary(ctx);
+    if (!ctx.message || !ctx.message.text) {
+      await ctx.reply('Iltimos, mahalla bilan qilingan amaliy ish haqida yozib yuboring:');
+      return;
     }
+
+    const text = ctx.message.text.trim();
+    if (text === '/cancel' || text === '❌ Bekor qilish') {
+      await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
+      return ctx.scene.leave();
+    }
+
+    ctx.wizard.state.survey.amaliyIsh = text;
+    return showSummary(ctx);
   },
 
   // ----------------------------------------------------
@@ -386,15 +406,18 @@ const surveyScene = new Scenes.WizardScene(
   }
 );
 
-// Yordamchi: 8-savol tugmalarini chiqarish
+// Yordamchi: 8-savol matn kiritishni so'rash
 async function askAmaliyIsh(ctx) {
-  const buttons = AMALIY_ISH_OPTIONS.map(opt => [Markup.button.callback(opt, `amaliy:${opt}`)]);
-  buttons.push([Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]);
-
   await ctx.reply(
-    '💼 *8-savol: Mahalla bilan qilingan amaliy ish*\n\nQuyidagi variantlardan birini tanlang yoki o‘zingiz yozib yuboring:\n' +
-    '• Kreditga yo‘naltirish\n• Issiqxona qurib berish\n• Hovli yeridan foydalanishni tavsiya berish\n• Ish taklif qilish',
-    { parse_mode: 'Markdown', ...Markup.inlineKeyboard(buttons) }
+    '💼 *8-savol: Mahalla bilan qilingan amaliy ish*\n\n' +
+    'Mahalla bilan qilingan amaliy ish haqida yozib yuboring.\n' +
+    '_(Masalan: Kreditga yo‘naltirish, Issiqxona qurib berish, Hovli yeridan foydalanishni tavsiya berish, Ish taklif qilish yoki boshqa...)_',
+    {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]
+      ])
+    }
   );
   return ctx.wizard.next();
 }
