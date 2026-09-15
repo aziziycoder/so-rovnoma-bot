@@ -147,15 +147,15 @@ const surveyScene = new Scenes.WizardScene(
 
     ctx.wizard.state.survey.birgaIshlagan = ctx.message.text.trim();
 
-    // 4-savol: Telefon raqami
-    const phoneKeyboard = Markup.keyboard([
-      [Markup.button.contactRequest('📱 Telefon raqamimni yuborish')],
-      ['❌ Bekor qilish']
-    ]).resize();
-
+    // 4-savol: Telefon raqami (Qo'lda kiritish)
     await ctx.reply(
-      '📞 *4-savol: Telefon raqami*\n\nTelefon raqamingizni pastdagi tugma orqali yuboring yoki qo‘lda yozing (masalan: `+998901234567`):',
-      { parse_mode: 'Markdown', ...phoneKeyboard }
+      '📞 *4-savol: Telefon raqami*\n\nTelefon raqamini yozib yuboring (masalan: `+998901234567` yoki `901234567`):',
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('❌ Bekor qilish', 'cancel_survey')]
+        ])
+      }
     );
     return ctx.wizard.next();
   },
@@ -164,26 +164,38 @@ const surveyScene = new Scenes.WizardScene(
   // BOSQICH 5: Telefon raqamini qabul qilish va Qilingan ishni so'rash (Savol 5)
   // ----------------------------------------------------
   async (ctx) => {
+    if (ctx.callbackQuery) {
+      if (ctx.callbackQuery.data === 'cancel_survey') {
+        await ctx.answerCbQuery('So‘rovnoma bekor qilindi');
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
+        return ctx.scene.leave();
+      }
+    }
+
     let phone = '';
 
     if (ctx.message && ctx.message.contact) {
       phone = ctx.message.contact.phone_number;
     } else if (ctx.message && ctx.message.text) {
       const text = ctx.message.text.trim();
-      if (text === '❌ Bekor qilish') {
-        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.', Markup.removeKeyboard());
+      if (text === '/cancel' || text === '❌ Bekor qilish') {
+        await ctx.reply('❌ So‘rovnoma bekor qilindi. Qayta boshlash uchun /start bosing.');
         return ctx.scene.leave();
+      }
+      // Raqamlarni tekshirish (kamida 7 ta raqam bo'lishi kerak)
+      const digits = text.replace(/\D/g, '');
+      if (digits.length < 7) {
+        await ctx.reply('⚠️ Iltimos, to‘g‘ri telefon raqam kiriting (masalan: `+998901234567`):', { parse_mode: 'Markdown' });
+        return;
       }
       phone = text;
     } else {
-      await ctx.reply('Iltimos, telefon raqamingizni yuboring:');
+      await ctx.reply('Iltimos, telefon raqamini matn ko‘rinishida yozib yuboring:');
       return;
     }
 
     ctx.wizard.state.survey.telefon = phone;
-
-    // Klaviatura tozalash
-    await ctx.reply('✅ Telefon raqamingiz qabul qilindi.', Markup.removeKeyboard());
+    await ctx.reply(`✅ *Telefon raqami qabul qilindi:* ${phone}`, { parse_mode: 'Markdown' });
 
     // 5-savol: Mahallada qilingan ish
     const buttons = QILINGAN_ISH_OPTIONS.map(opt => [Markup.button.callback(opt, `qilingan:${opt}`)]);
