@@ -314,8 +314,9 @@ const surveyScene = new Scenes.WizardScene(
 
     if (ctx.message && ctx.message.photo && ctx.message.photo.length > 0) {
       const photos = ctx.message.photo;
-      const largestPhoto = photos[photos.length - 1];
-      ctx.wizard.state.survey.photoFileId = largestPhoto.file_id;
+      // Google Apps Script limitlariga tushmaslik uchun optimal o'lchamdagi (800px atrofida) rasmni tanlaymiz
+      const optimalPhoto = photos.length > 2 ? photos[photos.length - 2] : photos[photos.length - 1];
+      ctx.wizard.state.survey.photoFileId = optimalPhoto.file_id;
       await ctx.reply('✅ Rasm muvaffaqiyatli qabul qilindi.');
 
       // 8-savolga o'tish: Amaliy ish

@@ -23,7 +23,8 @@ async function getTelegramPhotoBase64(telegram, fileId) {
  * So'rovnoma ma'lumotlarini Google Apps Script Webhook'iga yuborish
  */
 async function sendToGoogleSheet(surveyData, telegram) {
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  const rawUrl = process.env.GOOGLE_SCRIPT_URL;
+  const scriptUrl = rawUrl ? rawUrl.trim() : null;
 
   if (!scriptUrl) {
     console.warn('DIQQAT: GOOGLE_SCRIPT_URL .env faylida ko\'rsatilmagan!');
@@ -64,8 +65,10 @@ async function sendToGoogleSheet(surveyData, telegram) {
     console.log("Google Sheets'ga yuborilmoqda...");
     const res = await axios.post(scriptUrl, payload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 30000,
-      maxRedirects: 5
+      timeout: 45000,
+      maxRedirects: 10,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
     });
 
     if (res.data && res.data.status === 'success') {
